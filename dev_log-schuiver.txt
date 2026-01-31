@@ -1,0 +1,41 @@
+# dev_log_schuiver.txt
+
+31/01/2026
+- installed uv on distrobox (see main dev_log.txt)
+- uv python install 3.12.2 
+- made project structure with root/src/schuiver/__init__.py, /__main__.py, 
+    /app.py en root/assets
+- moved content of main.py to app.py
+- initiated uv for the project: uv init
+- locked project on python 3.12.2 with .python-version file
+- made and activated venv: 
+    uv venv
+    source .venv/bin/activate
+- added to pyproject.toml:
+    [build-system]
+    requires = ["hatchling"]
+    build-backend = "hatchling.build"
+- pinned the new python version: uv python pin 3.14 (auto-updated .python-version to 3.14.2)
+- deactivated, then removed the venv: rm -rf .venv
+- recreated venv with the new python version:uv venv --python 3.14.2 (auto-downloaded it)
+- uv sync
+- manually edited pyproject.toml to require python 3.14.2
+- installed pygame-ce 2.5.6: uv add "pygame-ce==2.5.6", which auto-updated pyproject.toml
+    and uv.lock
+
+
+
+30/01/2026
+- created project root folder on toad: 
+    /var/home/toad/boxhome/nikisavantes/projects/schuiver
+- initiated git at project root: git init
+- made empty repo on github with standard gitignore
+- connected the local (remote) and the github (origin):
+    git remote add origin https://github.com/nikisavantes/schuiver.git
+- renamed master to main: git branch -M main
+- pulled gitignore: git pull origin main
+- (eerst of na pull?) initial commit
+    git add .
+    git commit -m "Initial commit"
+    git push origin main
+
