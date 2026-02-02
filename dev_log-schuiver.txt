@@ -1,5 +1,16 @@
 # dev_log_schuiver.txt
 
+01/02/2026
+- added a get_possible_slides(empty_slot) function that calculates the legal move 
+    directions of the empty_slot
+- detect arrow keypresses and compare them with the allowed moves
+- updating the play board when legal moves happen (= swap the empty space with the 
+    tile that moved)
+!!! I am actually moving the empty slot around whereas when one plays it, we move  
+    tiles, but the swapping the moving tile for the empty space is identical
+    Might this cause logic problems when I am implementing the mouse clicks
+    instead of the arrow keys?
+
 31/01/2026
 - installed uv on distrobox (see main dev_log.txt)
 - uv python install 3.12.2 
@@ -22,8 +33,12 @@
 - manually edited pyproject.toml to require python 3.14.2
 - installed pygame-ce 2.5.6: uv add "pygame-ce==2.5.6", which auto-updated pyproject.toml
     and uv.lock
-
-
+- nieuwe commit met structuur, lock enz.
+- worked on app.py to have a minimalistic gameloop (display black screen 600*600
+    and wait for user input: linker muisknop of exit registration)
+- added comments to all the code parts
+- added/solved Exception handling
+- started working on logic (solved_board, empty_slot, how to calculate allowed moves)
 
 30/01/2026
 - created project root folder on toad: 
