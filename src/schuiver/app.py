@@ -5,6 +5,7 @@
 # moet maken
 import pygame
 import traceback # to get clear error messages
+import random
 
 solved_board = [1, 2, 3, 4, 5, 6, 7, 8, 9]
 play_board = solved_board[:]
@@ -39,6 +40,37 @@ def get_possible_slides(empty_slot):
     # print(legal_moves)
     return legal_moves
 
+def move(b, empty_slot):
+    # swap the moving tile with the empty slot
+    print("Entering move function, b is now:", b)
+    print("before move playboard:", play_board)
+    moved = False
+    if b == "left":
+        moving_tile = empty_slot 
+        empty_slot -= 1
+        moved = True
+    elif b == "right":
+        moving_tile = empty_slot 
+        empty_slot += 1
+        moved = True
+    elif b == "up":
+        moving_tile = empty_slot 
+        empty_slot -= 3
+        moved = True
+    elif b == "down":
+        moving_tile = empty_slot 
+        empty_slot += 3
+        moved = True
+    else:
+        print("no valid choice in move. b is", b)
+        return
+    if moved: 
+        print("The empty slot is on pos", empty_slot, "- the tile that moved is now on", moving_tile )
+        play_board[empty_slot-1], play_board[moving_tile-1] = play_board[moving_tile-1], play_board[empty_slot-1]
+        print("if moved playboard:", play_board)
+    return play_board, moving_tile, empty_slot, moved
+
+
 def game_loop():
     # initialise pygame
     pygame.display.init()
@@ -55,14 +87,36 @@ def game_loop():
     clock = pygame.time.Clock()
     # set dt
     dt = 0.0
-    running = True
     play_board = solved_board[:]
+    
+    running = False
+    moved = False
+    scrambling = True
     empty_slot = 9
     moving_tile = None
 
+    for n in range(1,4):
+        legal_moves = get_possible_slides(empty_slot)
+        a = random.randint(1,len(legal_moves))
+        b = legal_moves[a-1]
+        print()
+        print("legal moves are:", legal_moves, "a:", a, "b:", b)
+        result = move(b, empty_slot)
+        play_board,_,_,_ = result
+        _,moving_tile,_,_ = result
+        _,_,empty_slot,_ = result
+        _,_,_,moved = result
+        print("Result:", result)
+    
     # keeping track of which modules are loaded
     # print("Pygame Core initiated:", pygame.get_init())
     # print("Pygame Display initiated:", pygame.display.get_init())
+
+    scrambling = False
+    running = True
+    print()
+    print("Solve the puzzle!")
+    print()
 
     while running:
         # 1) Check Events
@@ -74,39 +128,37 @@ def game_loop():
             if event.type == pygame.KEYDOWN:
                 legal_moves = get_possible_slides(empty_slot)
                 moved = False
-                # print(legal_moves, empty_slot)
+                print(legal_moves, empty_slot)
                 if event.key == pygame.K_ESCAPE:
                     print("escape was pressed")
                     running = False
                 else:
                     if event.key == pygame.K_LEFT and "left" in legal_moves:
-                        # print("LEFT was pressed")
-                        moving_tile = empty_slot 
-                        empty_slot -= 1
+                        b = "left"
                         moved = True
                     elif event.key == pygame.K_RIGHT and "right" in legal_moves:
-                        # print("RIGHT was pressed") 
-                        moving_tile = empty_slot 
-                        empty_slot += 1
+                        b = "right"
                         moved = True
                     elif event.key == pygame.K_UP and "up" in legal_moves:
-                        # print("UP was pressed") 
-                        moving_tile = empty_slot 
-                        empty_slot -= 3
+                        b = "up"
                         moved = True
                     elif event.key == pygame.K_DOWN and "down" in legal_moves:
-                        # print("DOWN was pressed") 
-                        moving_tile = empty_slot 
-                        empty_slot += 3
+                        b = "down"
                         moved = True
                     else:
-                        print("The only allowed moves are:", legal_moves)
+                        b = ""
                         moved = False
-                # print(play_board)
-                # print("The empty slot is", empty_slot, "- the tile that moved is now on", moving_tile )
                 if moved:
-                    play_board[empty_slot-1], play_board[moving_tile-1] = play_board[moving_tile-1], play_board[empty_slot-1]
-                print(play_board)
+                    result = move(b, empty_slot)
+                    play_board,_,_,_ = result
+                    _,moving_tile,_,_ = result
+                    _,_,empty_slot,_ = result
+                    _,_,_,moved = result
+                    print("Result 2:", result)
+                print(play_board) # is a not updated board!!!
+                if play_board == solved_board:
+                    print("Congratulations, you solved the puzzle!")
+                    running = False
             # check for window close
             if event.type == pygame.QUIT:
                 print("quit was chosen")

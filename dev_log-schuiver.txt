@@ -1,5 +1,18 @@
 # dev_log_schuiver.txt
 
+TODO
+====
+- comment out the print statements, but keep them for debugging,
+    so scrambling is invisible
+- start on graphics
+
+
+02/02/2026
+- added a scramble function
+- debugged it with lots of print statements
+- isolated the repeated "move the empty slot in a direction" code into a move() function
+- debugged that, it took a while
+
 01/02/2026
 - added a get_possible_slides(empty_slot) function that calculates the legal move 
     directions of the empty_slot
