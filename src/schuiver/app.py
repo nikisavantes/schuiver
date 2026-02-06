@@ -9,8 +9,8 @@ import random
 
 solved_board = [1, 2, 3, 4, 5, 6, 7, 8, 9]
 play_board = solved_board[:]
-# empty_slot = len(solved_board)
-# empty_slot = 8
+tiles = [None] * 10
+# tiles = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
 def get_possible_slides(empty_slot):
     legal_moves = []
@@ -36,11 +36,10 @@ def get_possible_slides(empty_slot):
     else: # empty_slot in (7, 8, 9):
         # print("moving up is legal")
         legal_moves.append("up")
-    # report valid tile indexes for a given position
-    # print(legal_moves)
     return legal_moves
 
 def move(b, empty_slot):
+    # When move() is entered we are sure that b is a legal move
     # swap the moving tile with the empty slot
     print("Entering move function, b is now:", b)
     print("before move playboard:", play_board)
@@ -62,13 +61,12 @@ def move(b, empty_slot):
         empty_slot += 3
         moved = True
     else:
-        print("no valid choice in move. b is", b)
         return
     if moved: 
         print("The empty slot is on pos", empty_slot, "- the tile that moved is now on", moving_tile )
         play_board[empty_slot-1], play_board[moving_tile-1] = play_board[moving_tile-1], play_board[empty_slot-1]
         print("if moved playboard:", play_board)
-    return play_board, moving_tile, empty_slot, moved
+    return empty_slot  
 
 
 def game_loop():
@@ -80,6 +78,38 @@ def game_loop():
     h = 600
     # create the display surface
     screen = pygame.display.set_mode((w, h))
+    # Check if pygame supports anything else than .bmp
+    if pygame.image.get_extended() == False:
+        print("This pygame version does not support JPG images, sorry")
+        exit()
+    # load assets/anon.jpg
+    anon = pygame.image.load("assets/anon.jpg")
+    # call .convert()
+    anon = pygame.Surface.convert(anon)
+    # print its size with get_size()
+    c = anon.get_size()
+    if c != (w, h):
+        print("Oh no, this picture is not",w,"x",h,"pixels!")
+        exit ()
+    else: 
+        print("The picture has the correct dimensions")
+    
+    # SLICING LOOP
+        
+    for tile_id in range(1,10): # keep only 1-9
+        row = (tile_id - 1) // 3
+        col = (tile_id - 1) % 3
+        rect = pygame.Rect(col *200, row * 200, w//3, h//3)
+        tile = anon.subsurface(rect)
+        tiles[tile_id] = tile
+        screen.blit(tiles[tile_id], )
+    print(tiles)
+    # row/col math
+    # left/top math
+    # Rect
+    # subsurface
+    # tiles[tile_id] = ...
+
     # set a caption for the window
     pygame.display.set_caption("Pypuzzle")
 
@@ -87,7 +117,7 @@ def game_loop():
     clock = pygame.time.Clock()
     # set dt
     dt = 0.0
-    play_board = solved_board[:]
+    play_board[:] = solved_board
     
     running = False
     moved = False
@@ -95,18 +125,19 @@ def game_loop():
     empty_slot = 9
     moving_tile = None
 
-    for n in range(1,4):
+    # make moves x times to scramble the playboard
+    for n in range(1,10):
+        # the list that holds the legal moves given the position of the empty slot
         legal_moves = get_possible_slides(empty_slot)
+        # pick one of the legal moves
         a = random.randint(1,len(legal_moves))
+        # get the string for it
         b = legal_moves[a-1]
+        # show the legal moves and the chosen move in the console
         print()
         print("legal moves are:", legal_moves, "a:", a, "b:", b)
-        result = move(b, empty_slot)
-        play_board,_,_,_ = result
-        _,moving_tile,_,_ = result
-        _,_,empty_slot,_ = result
-        _,_,_,moved = result
-        print("Result:", result)
+        empty_slot = move(b, empty_slot)
+        print("Result:", play_board, empty_slot)
     
     # keeping track of which modules are loaded
     # print("Pygame Core initiated:", pygame.get_init())
@@ -124,6 +155,39 @@ def game_loop():
             # check for mousebutton press
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 print("Left mouse button was pressed succesfully!")
+                legal_moves = get_possible_slides(empty_slot)
+                moved = False
+                print(legal_moves, empty_slot)
+                (mx, my) = event.pos
+                print("mouse coordinates are",mx,my)
+                row = my//200
+                col = mx//200
+                position = (row, col)
+                print("position is",position)
+                # calculate tile position 1-9
+                pos = (row*3)+col+1
+                print("pos is",pos)
+                # compute pos
+                delta = pos - empty_slot
+                print("delta is",delta)
+                # map delta → direction string
+                if delta == -1 and "left" in legal_moves:
+                    b = "left"
+                elif delta == +1 and "right" in legal_moves:
+                    b = "right"
+                elif delta == -3 and "up" in legal_moves:
+                    b = "up"
+                elif delta == +3 and "down" in legal_moves:
+                    b = "down"
+                else:
+                    print("Not a legal move")
+                    b = ""
+                    continue
+                if b != "":
+                    print("Mousedirection is",b)
+                    empty_slot = move(b,empty_slot)
+                    print("empty slot has moved to",empty_slot)
+                    tile_id = play_board[pos-1]
             # check for keypress
             if event.type == pygame.KEYDOWN:
                 legal_moves = get_possible_slides(empty_slot)
@@ -135,30 +199,21 @@ def game_loop():
                 else:
                     if event.key == pygame.K_LEFT and "left" in legal_moves:
                         b = "left"
-                        moved = True
                     elif event.key == pygame.K_RIGHT and "right" in legal_moves:
                         b = "right"
-                        moved = True
                     elif event.key == pygame.K_UP and "up" in legal_moves:
                         b = "up"
-                        moved = True
                     elif event.key == pygame.K_DOWN and "down" in legal_moves:
                         b = "down"
-                        moved = True
-                    else:
-                        b = ""
-                        moved = False
-                if moved:
-                    result = move(b, empty_slot)
-                    play_board,_,_,_ = result
-                    _,moving_tile,_,_ = result
-                    _,_,empty_slot,_ = result
-                    _,_,_,moved = result
-                    print("Result 2:", result)
-                print(play_board) # is a not updated board!!!
-                if play_board == solved_board:
-                    print("Congratulations, you solved the puzzle!")
-                    running = False
+                    else: # any other key should be ignored
+                        continue
+                        print("this case should never happen")
+                    empty_slot = move(b, empty_slot)
+                    print("Result2:", play_board, empty_slot)
+                print("Result2:", play_board, empty_slot)
+            if play_board == solved_board:
+                print("Congratulations, you solved the puzzle!")
+                running = False        
             # check for window close
             if event.type == pygame.QUIT:
                 print("quit was chosen")
@@ -166,10 +221,20 @@ def game_loop():
         # 2) Advance Game time
         dt = clock.tick(60) / 1000.0
         # 3) Update game (simulation)
+        # if tile_id != 9: blit(...)
         # 4) Draw (read-only)
         screen.fill((0,0,0))
+        for pos in range(1,10):
+            row = (pos - 1) // 3
+            col = (pos - 1) % 3 
+            position = (col*200, row*200)
+            tile_id = play_board[pos-1]
+            if tile_id != 9: 
+                #blit tile at that position
+                screen.blit(tiles[tile_id], position)
         pygame.display.flip()
-        
+
+
     print("quitting")
     pygame.quit()
 
