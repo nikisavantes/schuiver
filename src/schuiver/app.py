@@ -10,7 +10,8 @@ import random
 solved_board = [1, 2, 3, 4, 5, 6, 7, 8, 9]
 play_board = solved_board[:]
 tiles = [None] * 10
-# tiles = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+GRID = 3    # playboard is a 3x3 grid, divided into 9 tiles
+TILE = 200  # tiles are 200x200 pixels
 
 def get_possible_slides(empty_slot):
     legal_moves = []
@@ -41,8 +42,8 @@ def get_possible_slides(empty_slot):
 def move(b, empty_slot):
     # When move() is entered we are sure that b is a legal move
     # swap the moving tile with the empty slot
-    print("Entering move function, b is now:", b)
-    print("before move playboard:", play_board)
+    # print("Entering move function, b is now:", b)
+    # print("before move playboard:", play_board)
     moved = False
     if b == "left":
         moving_tile = empty_slot 
@@ -63,15 +64,15 @@ def move(b, empty_slot):
     else:
         return
     if moved: 
-        print("The empty slot is on pos", empty_slot, "- the tile that moved is now on", moving_tile )
+        # print("The empty slot is on pos", empty_slot, "- the tile that moved is now on", moving_tile )
         play_board[empty_slot-1], play_board[moving_tile-1] = play_board[moving_tile-1], play_board[empty_slot-1]
-        print("if moved playboard:", play_board)
+        # print("if moved playboard:", play_board)
     return empty_slot  
 
 
 def game_loop():
     # initialise pygame
-    pygame.display.init()
+    pygame.init()
 
     # set screen width and height
     w = 600
@@ -81,7 +82,7 @@ def game_loop():
     # Check if pygame supports anything else than .bmp
     if pygame.image.get_extended() == False:
         print("This pygame version does not support JPG images, sorry")
-        exit()
+        return
     # load assets/anon.jpg
     anon = pygame.image.load("assets/anon.jpg")
     # call .convert()
@@ -90,25 +91,24 @@ def game_loop():
     c = anon.get_size()
     if c != (w, h):
         print("Oh no, this picture is not",w,"x",h,"pixels!")
-        exit ()
-    else: 
-        print("The picture has the correct dimensions")
+        return
+    # else: 
+        # print("The picture has the correct dimensions")
     
     # SLICING LOOP
         
     for tile_id in range(1,10): # keep only 1-9
-        row = (tile_id - 1) // 3
-        col = (tile_id - 1) % 3
-        rect = pygame.Rect(col *200, row * 200, w//3, h//3)
+        # row/col math
+        row = (tile_id - 1) // GRID
+        col = (tile_id - 1) % GRID
+        # left/top math
+        # Rect
+        rect = pygame.Rect(col * TILE, row * TILE, w//GRID, h//GRID)
+        # subsurface
         tile = anon.subsurface(rect)
+        # tiles[tile_id] = ...
         tiles[tile_id] = tile
-        screen.blit(tiles[tile_id], )
-    print(tiles)
-    # row/col math
-    # left/top math
-    # Rect
-    # subsurface
-    # tiles[tile_id] = ...
+    # print(tiles)
 
     # set a caption for the window
     pygame.display.set_caption("Pypuzzle")
@@ -120,31 +120,25 @@ def game_loop():
     play_board[:] = solved_board
     
     running = False
-    moved = False
+    # moved = False
     scrambling = True
     empty_slot = 9
-    moving_tile = None
+    # moving_tile = None
 
     # make moves x times to scramble the playboard
     for n in range(1,10):
         # the list that holds the legal moves given the position of the empty slot
         legal_moves = get_possible_slides(empty_slot)
         # pick one of the legal moves
-        a = random.randint(1,len(legal_moves))
-        # get the string for it
-        b = legal_moves[a-1]
+        b = random.choice(legal_moves)
         # show the legal moves and the chosen move in the console
-        print()
-        print("legal moves are:", legal_moves, "a:", a, "b:", b)
+        # print("legal moves are:", legal_moves, "Chosen move:", b)
         empty_slot = move(b, empty_slot)
-        print("Result:", play_board, empty_slot)
+        # print("Result:", play_board, empty_slot)
     
-    # keeping track of which modules are loaded
-    # print("Pygame Core initiated:", pygame.get_init())
-    # print("Pygame Display initiated:", pygame.display.get_init())
-
     scrambling = False
     running = True
+    # Turn the solve into an overlay!
     print()
     print("Solve the puzzle!")
     print()
@@ -154,22 +148,20 @@ def game_loop():
         for event in pygame.event.get():
             # check for mousebutton press
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                print("Left mouse button was pressed succesfully!")
+                # print("Left mouse button was pressed succesfully!")
                 legal_moves = get_possible_slides(empty_slot)
                 moved = False
-                print(legal_moves, empty_slot)
+                # print(legal_moves, empty_slot)
                 (mx, my) = event.pos
-                print("mouse coordinates are",mx,my)
-                row = my//200
-                col = mx//200
-                position = (row, col)
-                print("position is",position)
+                # print("mouse coordinates are",mx,my)
+                row = my//TILE
+                col = mx//TILE
                 # calculate tile position 1-9
                 pos = (row*3)+col+1
-                print("pos is",pos)
+                # print("pos is",pos)
                 # compute pos
                 delta = pos - empty_slot
-                print("delta is",delta)
+                # print("delta is",delta)
                 # map delta → direction string
                 if delta == -1 and "left" in legal_moves:
                     b = "left"
@@ -180,22 +172,22 @@ def game_loop():
                 elif delta == +3 and "down" in legal_moves:
                     b = "down"
                 else:
-                    print("Not a legal move")
+                    # print("Not a legal move")
                     b = ""
                     continue
                 if b != "":
-                    print("Mousedirection is",b)
+                    # print("Mousedirection is",b)
                     empty_slot = move(b,empty_slot)
-                    print("empty slot has moved to",empty_slot)
+                    # print("empty slot has moved to",empty_slot)
                     tile_id = play_board[pos-1]
             # check for keypress
             if event.type == pygame.KEYDOWN:
                 legal_moves = get_possible_slides(empty_slot)
                 moved = False
-                print(legal_moves, empty_slot)
+                # print(legal_moves, empty_slot)
                 if event.key == pygame.K_ESCAPE:
-                    print("escape was pressed")
-                    running = False
+                    running = False   
+                    # print("escape was pressed")
                 else:
                     if event.key == pygame.K_LEFT and "left" in legal_moves:
                         b = "left"
@@ -207,39 +199,37 @@ def game_loop():
                         b = "down"
                     else: # any other key should be ignored
                         continue
-                        print("this case should never happen")
                     empty_slot = move(b, empty_slot)
-                    print("Result2:", play_board, empty_slot)
-                print("Result2:", play_board, empty_slot)
+                    # print("Result2:", play_board, empty_slot)
+                # print("Result2:", play_board, empty_slot)
             if play_board == solved_board:
+                running = False
+                # Make this into an overlay!
                 print("Congratulations, you solved the puzzle!")
-                running = False        
             # check for window close
             if event.type == pygame.QUIT:
-                print("quit was chosen")
-                running = False
+                running = False   
+                # print("quit was chosen")
         # 2) Advance Game time
-        dt = clock.tick(60) / 1000.0
+        clock.tick(60)
         # 3) Update game (simulation)
-        # if tile_id != 9: blit(...)
         # 4) Draw (read-only)
         screen.fill((0,0,0))
         for pos in range(1,10):
-            row = (pos - 1) // 3
-            col = (pos - 1) % 3 
-            position = (col*200, row*200)
+            row = (pos - 1) // GRID
+            col = (pos - 1) % GRID
+            position = (col*TILE, row*TILE)
             tile_id = play_board[pos-1]
             if tile_id != 9: 
                 #blit tile at that position
                 screen.blit(tiles[tile_id], position)
         pygame.display.flip()
 
-
-    print("quitting")
+    # print("quitting")
     pygame.quit()
 
 def main():
-    print("Empty slot is 9")
+    # print("Empty slot is 9")
     try:
         # raise Exception("testing my exception handling")
         game_loop()

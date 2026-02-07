@@ -6,6 +6,22 @@ TODO
     so scrambling is invisible
 - start on graphics
 
+07/02/2026
+- program wasn't working correctly so reverted to previous commit (mechanics working
+    but lots of print statements)
+
+06/02/2026
+- found an image and refactored it to 600x600 pixels
+- loaded image into program
+- sliced image in 9 pieces representing tiles (rectangles, surfaces)
+- adapted code to clicking on arrow keys makes the empty slot move visually (+debug)
+- wrote mouse code so clicking on neighbouring tiles of empty slot makes the empty
+    slot move both visually and conceptually (+ extensive debug with help of chatGPT)
+    Don't fully understand everything about surfaces, rectangles and delta yet
+- moved "solved condition fulfilled" loop outside of key detection so both arrow 
+    keys and mouse clicks can result in solved board congratulations message
+- removed superfluous print statements and optimized code according to chatGPT's
+    directions
 
 02/02/2026
 - added a scramble function
