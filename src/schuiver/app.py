@@ -4,7 +4,7 @@
 # random verspreid wordt over het gameboard en de user de tekening terug "heel"
 # moet maken
 
-# possible states: INIT, SCRAMBLING, PLAYING, SOLVED
+# possible states: PLAYING, SOLVED, QUITTING
 
 import pygame
 import traceback # to get clear error messages
@@ -74,9 +74,10 @@ def move(b, empty_slot):
 
 
 def game_loop():
-    state = "INIT"
     # initialise pygame
     pygame.init()
+    font = pygame.font.Font(None, 40)
+    bigfont = pygame.font.Font(None, 160)
 
     # set screen width and height
     w = 600
@@ -106,7 +107,6 @@ def game_loop():
         row = (tile_id - 1) // GRID
         col = (tile_id - 1) % GRID
         # left/top math
-        # Rect
         rect = pygame.Rect(col * TILE, row * TILE, w//GRID, h//GRID)
         # subsurface
         tile = anon.subsurface(rect)
@@ -114,51 +114,66 @@ def game_loop():
         tiles[tile_id] = tile
     # print(tiles)
 
+    # OVERLAY DEFINITION AFTER state is SOLVED
+    overlay = pygame.Surface((w,h), pygame.SRCALPHA) # define transparent overlay covering screen
+    overlay.fill((0, 0, 0, 160)) # last number = opacity
+    solved_area = pygame.Rect(20,20,560,200)
+    # Define rectangles for quit and play again buttons (used after SOLVED)
+    quit_button = pygame.Rect(70,500,200,70)
+    again_button = pygame.Rect(330, 500, 200, 70)
+    # font renderings
+     # Define rectangle for SOLVED message after state is SOLVED
+    solved_message_surface = bigfont.render("SOLVED!", True, "red")
+    quit_txt_surface = font.render("QUIT", True, (200,200,200))
+    again_txt_surface = font.render("PLAY AGAIN", True, (200,200,200))
+    solved_message_rect = solved_message_surface.get_rect(center=solved_area.center)
+    quit_txt_rect = quit_txt_surface.get_rect(center=quit_button.center)
+    again_txt_rect = again_txt_surface.get_rect(center=again_button.center)
+    
     # set a caption for the window
     pygame.display.set_caption("Pypuzzle")
-
+    
     # create a clock
     clock = pygame.time.Clock()
+    
     # set dt
-    dt = 0.0
+    # dt = 0.0
 
     play_board[:] = solved_board
 
-    state = "SCRAMBLING"    
-    ## running = False
-    # moved = False
-    ## scrambling = True
     empty_slot = 9
-    # moving_tile = None
+    nr_moves = 50
 
-    # make moves x times to scramble the playboard
-    for n in range(1,10):
-        # the list that holds the legal moves given the position of the empty slot
-        legal_moves = get_possible_slides(empty_slot)
-        # pick one of the legal moves
-        b = random.choice(legal_moves)
-        # show the legal moves and the chosen move in the console
-        # print("legal moves are:", legal_moves, "Chosen move:", b)
-        empty_slot = move(b, empty_slot)
-        # print("Result:", play_board, empty_slot)
+    # SCRAMBLE FUNCTION
+
+    def scramble(empty_slot):
+        # make moves x times to scramble the playboard
+        for n in range(1, nr_moves):
+            # the list that holds the legal moves given the position of the empty slot
+            legal_moves = get_possible_slides(empty_slot)
+            # pick one of the legal moves
+            b = random.choice(legal_moves)
+            # show the legal moves and the chosen move in the console
+            # print("legal moves are:", legal_moves, "Chosen move:", b)
+            empty_slot = move(b, empty_slot)
+            # print("Result:", play_board, empty_slot)
+        return empty_slot
     
-    ## scrambling = False
-    ## running = True
-
     # Turn the solve into an overlay!
     print()
     print("Solve the puzzle!")
     print()
 
     state = "PLAYING"
+    empty_slot = scramble(empty_slot)
+
     while state != "QUITTING":
         # 1) Check Events
         for event in pygame.event.get():
-            # check for mousebutton press
+            # check for mousebutton press while playing
             if state =="PLAYING" and event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 # print("Left mouse button was pressed succesfully!")
                 legal_moves = get_possible_slides(empty_slot)
-                ## moved = False
                 # print(legal_moves, empty_slot)
                 (mx, my) = event.pos
                 # print("mouse coordinates are",mx,my)
@@ -188,15 +203,29 @@ def game_loop():
                     empty_slot = move(b,empty_slot)
                     # print("empty slot has moved to",empty_slot)
                     tile_id = play_board[pos-1]
+            # check for mousebutton press on buttons when solved
+            elif state =="SOLVED" and event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                # check if mouseclick occurs inside quit or again rectangles
+                (mx, my) = event.pos
+                # print(mx, my)
+                if quit_button.collidepoint(mx, my):
+                    # print("quit hit")
+                    state = "QUITTING"
+                elif again_button.collidepoint(mx, my):
+                    # print("again hit")
+                    play_board[:] = solved_board
+                    empty_slot = 9
+                    empty_slot = scramble(empty_slot)
+                    state = "PLAYING"
+                # else:
+                    # continue
             # check for keypress
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     state = "QUITTING"
-                    ## running = False   
                     # print("escape was pressed")
-                if state == "PLAYING":
+                elif state == "PLAYING":
                     legal_moves = get_possible_slides(empty_slot)
-                    ## moved = False
                     # print(legal_moves, empty_slot)
                     if event.key == pygame.K_LEFT and "left" in legal_moves:
                         b = "left"
@@ -211,17 +240,17 @@ def game_loop():
                     empty_slot = move(b, empty_slot)
                     # print("Result2:", play_board, empty_slot)
                 # print("Result2:", play_board, empty_slot)
-            # check for solved
-            if state == "PLAYING" and play_board == solved_board:
-                state = "SOLVED"
-                ## running = False
-                # Make this into an overlay!
-                print("Congratulations, you solved the puzzle!")
+
             # check for window close
             if event.type == pygame.QUIT:
                 state = "QUITTING"
-                ## running = False   
                 # print("quit was chosen")
+
+        # check for solved
+        if state == "PLAYING" and play_board == solved_board:
+            state = "SOLVED"
+            # print("Congrats")
+
         # 2) Advance Game time
         clock.tick(60)
         # 3) Update game (simulation)
@@ -235,14 +264,30 @@ def game_loop():
             if tile_id != 9: 
                 #blit tile at that position
                 screen.blit(tiles[tile_id], position)
+        if state == "SOLVED":
+            screen.blit(overlay,(0,0))  # shadow over screen, defined earlier, starting top left
+            # draw two button rects (solid) with text
+            pygame.draw.rect(screen, (0,0,0), quit_button)  # button surface
+            pygame.draw.rect(screen, (200,200,200), quit_button, 3)     # button border
+            pygame.draw.rect(screen, (0,0,0), again_button) # button surface
+            pygame.draw.rect(screen, (200,200,200), again_button, 3)    # button border
+            mx, my = pygame.mouse.get_pos()
+            again_hover = again_button.collidepoint(mx, my)
+            quit_hover  = quit_button.collidepoint(mx, my)
+            if again_hover:
+                pygame.draw.rect(screen, (50,50,50), again_button) # button surface
+                pygame.draw.rect(screen, (250,250,250), again_button, 3)    # button border    
+            if quit_hover:
+                pygame.draw.rect(screen, (50,50,50), quit_button)  # button surface
+                pygame.draw.rect(screen, (250,250,250), quit_button, 3)     # button border
+            # draw a SOLVED message in color
+            screen.blit(solved_message_surface, solved_message_rect)
+            screen.blit(again_txt_surface, again_txt_rect)  # button text
+            screen.blit(quit_txt_surface, quit_txt_rect)    # button text
         pygame.display.flip()
 
-        if state == "SOLVED":
-            print("pass here")
-            state = "QUITTING"
-
         if state == "QUITTING":
-            print("quitting")
+            continue
     
     pygame.quit()
 
