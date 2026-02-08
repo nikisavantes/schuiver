@@ -6,9 +6,17 @@ TODO
     so scrambling is invisible
 - start on graphics
 
+08/02/2026
+- Resolved problems with state checks (Congratulations printing continuously, tiles 
+    could be move after solved)
+- starting on overlay buttons when SOLVED
+
 07/02/2026
 - program wasn't working correctly so reverted to previous commit (mechanics working
     but lots of print statements)
+- remarked the print statements out but left them in
+- switched from variable check is True (running, scrambling, solved), to state check 
+    (PLAYING, SOLVED, QUITTING)
 
 06/02/2026
 - found an image and refactored it to 600x600 pixels

@@ -3,6 +3,9 @@
 # DOEL: een 3x3 schuiver spelletje waarin een image in 9 stukken geknipt wordt
 # random verspreid wordt over het gameboard en de user de tekening terug "heel"
 # moet maken
+
+# possible states: INIT, SCRAMBLING, PLAYING, SOLVED
+
 import pygame
 import traceback # to get clear error messages
 import random
@@ -71,6 +74,7 @@ def move(b, empty_slot):
 
 
 def game_loop():
+    state = "INIT"
     # initialise pygame
     pygame.init()
 
@@ -117,11 +121,13 @@ def game_loop():
     clock = pygame.time.Clock()
     # set dt
     dt = 0.0
+
     play_board[:] = solved_board
-    
-    running = False
+
+    state = "SCRAMBLING"    
+    ## running = False
     # moved = False
-    scrambling = True
+    ## scrambling = True
     empty_slot = 9
     # moving_tile = None
 
@@ -136,21 +142,23 @@ def game_loop():
         empty_slot = move(b, empty_slot)
         # print("Result:", play_board, empty_slot)
     
-    scrambling = False
-    running = True
+    ## scrambling = False
+    ## running = True
+
     # Turn the solve into an overlay!
     print()
     print("Solve the puzzle!")
     print()
 
-    while running:
+    state = "PLAYING"
+    while state != "QUITTING":
         # 1) Check Events
         for event in pygame.event.get():
             # check for mousebutton press
-            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            if state =="PLAYING" and event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 # print("Left mouse button was pressed succesfully!")
                 legal_moves = get_possible_slides(empty_slot)
-                moved = False
+                ## moved = False
                 # print(legal_moves, empty_slot)
                 (mx, my) = event.pos
                 # print("mouse coordinates are",mx,my)
@@ -182,13 +190,14 @@ def game_loop():
                     tile_id = play_board[pos-1]
             # check for keypress
             if event.type == pygame.KEYDOWN:
-                legal_moves = get_possible_slides(empty_slot)
-                moved = False
-                # print(legal_moves, empty_slot)
                 if event.key == pygame.K_ESCAPE:
-                    running = False   
+                    state = "QUITTING"
+                    ## running = False   
                     # print("escape was pressed")
-                else:
+                if state == "PLAYING":
+                    legal_moves = get_possible_slides(empty_slot)
+                    ## moved = False
+                    # print(legal_moves, empty_slot)
                     if event.key == pygame.K_LEFT and "left" in legal_moves:
                         b = "left"
                     elif event.key == pygame.K_RIGHT and "right" in legal_moves:
@@ -202,13 +211,16 @@ def game_loop():
                     empty_slot = move(b, empty_slot)
                     # print("Result2:", play_board, empty_slot)
                 # print("Result2:", play_board, empty_slot)
-            if play_board == solved_board:
-                running = False
+            # check for solved
+            if state == "PLAYING" and play_board == solved_board:
+                state = "SOLVED"
+                ## running = False
                 # Make this into an overlay!
                 print("Congratulations, you solved the puzzle!")
             # check for window close
             if event.type == pygame.QUIT:
-                running = False   
+                state = "QUITTING"
+                ## running = False   
                 # print("quit was chosen")
         # 2) Advance Game time
         clock.tick(60)
@@ -225,7 +237,13 @@ def game_loop():
                 screen.blit(tiles[tile_id], position)
         pygame.display.flip()
 
-    # print("quitting")
+        if state == "SOLVED":
+            print("pass here")
+            state = "QUITTING"
+
+        if state == "QUITTING":
+            print("quitting")
+    
     pygame.quit()
 
 def main():
