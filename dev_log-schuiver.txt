@@ -2,6 +2,9 @@
 
 TODO
 ====
+- animation of moves?
+- counting how many moves it took = optional, depends heavily on how well it was scrambled
+- perhaps move scrambling to 300 instead of 50?
 
 08/02/2026
 - Resolved problems with state checks (Congratulations printing continuously, tiles 
@@ -9,6 +12,11 @@ TODO
 - added 2 overlay buttons when SOLVED: QUIT & PLAY AGAIN
 - added SOLVED! in big font and red when SOLVED
 - added hover with brighter colours for the quit and play again buttons
+- added START state and start button
+- showing complete image before starting
+- showing complete image after completion
+- visual tweaking (vertical centering) of button text
+- disabled overlay, but kept for reference purposes
 
 07/02/2026
 - program wasn't working correctly so reverted to previous commit (mechanics working
