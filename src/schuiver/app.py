@@ -4,7 +4,7 @@
 # random verspreid wordt over het gameboard en de user de tekening terug "heel"
 # moet maken
 
-# possible states: PLAYING, SOLVED, QUITTING
+# possible states: START, PLAYING, SOLVED, QUITTING
 
 import pygame
 import traceback # to get clear error messages
@@ -285,6 +285,11 @@ def game_loop():
                 if tile_id != 9: 
                     #blit tile at that position
                     screen.blit(tiles[tile_id], position)
+            # draw grid for tile edges
+            pygame.draw.line(screen, (200,200,200), (200,0), (200,600), width=1)
+            pygame.draw.line(screen, (200,200,200), (400,0), (400,600), width=1)
+            pygame.draw.line(screen, (200,200,200), (0,200), (600,200), width=1)
+            pygame.draw.line(screen, (200,200,200), (0,400), (600,400), width=1)
         elif state == "SOLVED":
             # print("solved")
             screen.blit(anon)

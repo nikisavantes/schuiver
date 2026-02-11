@@ -6,6 +6,9 @@ TODO
 - counting how many moves it took = optional, depends heavily on how well it was scrambled
 - perhaps move scrambling to 300 instead of 50?
 
+11/02/2026
+- added gridlines on screen so edges of tiles are easily recognisible
+
 08/02/2026
 - Resolved problems with state checks (Congratulations printing continuously, tiles 
     could be move after solved)
