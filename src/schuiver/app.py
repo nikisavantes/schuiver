@@ -15,62 +15,63 @@ play_board = solved_board[:]
 tiles = [None] * 10
 GRID = 3    # playboard is a 3x3 grid, divided into 9 tiles
 TILE = 200  # tiles are 200x200 pixels
+MOVE_DELTAS = (-1, +1, -GRID, +GRID) # possible moves inside the grid
+SCRAMBLE_MOVES = 3
+DEBUG_PRINTING = True
+
+# Debug printing statements, set True or False with DEBUG_PRINTING
+def dprint(msg):
+    if DEBUG_PRINTING:
+        print(msg)
+        return
 
 def get_possible_slides(empty_slot):
     legal_moves = []
     # check horizontal possible sliding neighbours
     if empty_slot in (2, 5, 8):
-        # print("moving to the left and to the right is legal")
-        legal_moves.append("left")
-        legal_moves.append("right")
+        # dprint("moving to the left and to the right is legal")
+        legal_moves.append(-1)
+        legal_moves.append(1)
     elif empty_slot in (3, 6, 9):
-        # print("moving to the left is legal")
-        legal_moves.append("left")
+        # dprint("moving to the left is legal")
+        legal_moves.append(-1)
     else: # (1, 4, 7):
-        # print("moving to the right is legal")
-        legal_moves.append("right")
+        # dprint("moving to the right is legal")
+        legal_moves.append(1)
     # check vertical possible sliding neighbours
     if empty_slot in (4, 5, 6):
-        # print("moving up and down is legal")
-        legal_moves.append("up")
-        legal_moves.append("down")
+        # dprint("moving up and down is legal")
+        legal_moves.append(-GRID)
+        legal_moves.append(GRID)
     elif empty_slot in (1, 2, 3): 
-        # print("moving down is legal")
-        legal_moves.append("down")
+        # dprint("moving down is legal")
+        legal_moves.append(GRID)
     else: # empty_slot in (7, 8, 9):
-        # print("moving up is legal")
-        legal_moves.append("up")
+        # dprint("moving up is legal")
+        legal_moves.append(-GRID)
     return legal_moves
 
 def move(b, empty_slot):
     # When move() is entered we are sure that b is a legal move
-    # swap the moving tile with the empty slot
-    # print("Entering move function, b is now:", b)
-    # print("before move playboard:", play_board)
+    # Nevertheless extra robustness checks for illegal moves have been included
+    # swap the selected tile with the empty slot
+    # dprint("Entering move function, b is now:", b)
+    # dprint("before move playboard:", play_board)
     moved = False
-    if b == "left":
-        moving_tile = empty_slot 
-        empty_slot -= 1
-        moved = True
-    elif b == "right":
-        moving_tile = empty_slot 
-        empty_slot += 1
-        moved = True
-    elif b == "up":
-        moving_tile = empty_slot 
-        empty_slot -= 3
-        moved = True
-    elif b == "down":
-        moving_tile = empty_slot 
-        empty_slot += 3
-        moved = True
-    else:
-        return
-    if moved: 
-        # print("The empty slot is on pos", empty_slot, "- the tile that moved is now on", moving_tile )
-        play_board[empty_slot-1], play_board[moving_tile-1] = play_board[moving_tile-1], play_board[empty_slot-1]
-        # print("if moved playboard:", play_board)
-    return empty_slot  
+    if type(b) != int:
+        return empty_slot
+    elif type(b) == int:
+        # dprint("The empty slot is on pos", empty_slot, "- the tile that moved is now on", moving_tile )
+        to_pos = empty_slot
+        from_pos = empty_slot + b
+        # prevent accidental out of bounds results
+        if from_pos < 1 or from_pos > 9: return empty_slot
+        # prevent wraps between 3-4 and 6-7
+        if abs(b) == 1 and ((to_pos-1)//GRID != (from_pos-1)//GRID): return empty_slot
+        # MUTATE the play board
+        play_board[to_pos-1], play_board[from_pos-1] = play_board[from_pos -1], play_board[to_pos-1]
+        # dprint("if moved playboard:", play_board)
+    return from_pos
 
 
 def game_loop():
@@ -99,7 +100,7 @@ def game_loop():
         print("Oh no, this picture is not",w,"x",h,"pixels!")
         return
     # else: 
-        # print("The picture has the correct dimensions")
+        # dprint("The picture has the correct dimensions")
     
     # SLICING LOOP
         
@@ -113,7 +114,7 @@ def game_loop():
         tile = anon.subsurface(rect)
         # tiles[tile_id] = ...
         tiles[tile_id] = tile
-    # print(tiles)
+    # dprint(tiles)
 
     # OVERLAY DEFINITION - KEEP IT AS A REFERENCE
     # overlay = pygame.Surface((w,h), pygame.SRCALPHA) # define transparent overlay covering screen
@@ -151,109 +152,103 @@ def game_loop():
     # set dt
     # dt = 0.0
 
+    # STARTING CONDITIONS
     play_board[:] = solved_board
-
     empty_slot = 9
-    nr_moves = 50
+    state = "START"
 
     # SCRAMBLE FUNCTION
-
     def scramble(empty_slot):
         # make moves x times to scramble the playboard
-        for n in range(1, nr_moves):
-            # the list that holds the legal moves given the position of the empty slot
+        for n in range(1, SCRAMBLE_MOVES):
+            # the list that holds the legal moves (deltas) given the position of the empty slot
             legal_moves = get_possible_slides(empty_slot)
             # pick one of the legal moves
             b = random.choice(legal_moves)
             # show the legal moves and the chosen move in the console
-            # print("legal moves are:", legal_moves, "Chosen move:", b)
+            # dprint(legal_moves)
+            # dprint(b)
             empty_slot = move(b, empty_slot)
-            # print("Result:", play_board, empty_slot)
+            # dprint("Result:", play_board, empty_slot)
         return empty_slot
     
-    state = "START"
-
     while state != "QUITTING":
         # 1) Check Events
         for event in pygame.event.get():
             # check for window close
             if event.type == pygame.QUIT: 
                 state = "QUITTING"
-                # print("quit was chosen")
+                # dprint("quit was chosen")
             # check for mousebutton press
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 (mx, my) = event.pos
-                # print("mouse coordinates are",mx,my)
+                # dprint("mouse coordinates are",mx,my)
                 if state == "START":
                     # check if mouseclick occurs inside start rectangle
                     if start_button.collidepoint(mx, my):
-                        # print("start hit")
+                        # dprint("start hit")
                         play_board[:] = solved_board
                         empty_slot = 9  
                         empty_slot = scramble(empty_slot)
-                        # print(empty_slot)
+                        # dprint(empty_slot)
                         state = "PLAYING"
+
                 elif state =="PLAYING":
                     legal_moves = get_possible_slides(empty_slot)
-                    # print(legal_moves, empty_slot)
+                    # dprint(legal_moves, empty_slot)
                     row = my//TILE
                     col = mx//TILE
                     # calculate tile position 1-9
                     pos = (row*3)+col+1
-                    # print("pos is",pos)
+                    # dprint("pos is",pos)
                     # compute pos
                     delta = pos - empty_slot
-                    # print("delta is",delta)
+                    # dprint("delta is",delta)
                     # map delta → direction string
-                    if delta == -1 and "left" in legal_moves:
-                        b = "left"
-                    elif delta == +1 and "right" in legal_moves:
-                        b = "right"
-                    elif delta == -3 and "up" in legal_moves:
-                        b = "up"
-                    elif delta == +3 and "down" in legal_moves:
-                        b = "down"
-                    else:
-                        # print("Not a legal move")
-                        b = ""
-                        continue
-                    if b != "":
-                        # print("Mousedirection is",b)
-                        empty_slot = move(b,empty_slot)
-                        # print("empty slot has moved to",empty_slot)
+                    if delta in legal_moves:
+                        # dprint("Mousedirection is",b)
+                        # dprint("legal move")
+                        empty_slot = move(delta,empty_slot)
+                        # dprint("empty slot has moved to",empty_slot)
                         tile_id = play_board[pos-1]
+                    else:
+                        # dprint("NOT legal")
+                        delta = None
+                        continue
+
                 elif state =="SOLVED":
                     # check if mouseclick occurs inside quit or again rectangles
                     if quit_button.collidepoint(mx, my):
-                        # print("quit hit")
+                        # dprint("quit hit")
                         state = "QUITTING"
                     elif again_button.collidepoint(mx, my):
-                        # print("again hit")
+                        # dprint("again hit")
                         play_board[:] = solved_board
                         empty_slot = 9
                         empty_slot = scramble(empty_slot)
                         state = "PLAYING"
+
             # check for keypress
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     state = "QUITTING"
-                    # print("escape was pressed")
+                    # dprint("escape was pressed")
                 elif state == "PLAYING":
                     legal_moves = get_possible_slides(empty_slot)
-                    # print(legal_moves, empty_slot)
-                    if event.key == pygame.K_LEFT and "left" in legal_moves:
-                        b = "left"
-                    elif event.key == pygame.K_RIGHT and "right" in legal_moves:
-                        b = "right"
-                    elif event.key == pygame.K_UP and "up" in legal_moves:
-                        b = "up"
-                    elif event.key == pygame.K_DOWN and "down" in legal_moves:
-                        b = "down"
+                    # dprint(legal_moves, empty_slot)
+                    if event.key == pygame.K_LEFT and -1 in legal_moves:
+                        b = -1
+                    elif event.key == pygame.K_RIGHT and +1 in legal_moves:
+                        b = 1
+                    elif event.key == pygame.K_UP and -GRID in legal_moves:
+                        b = -GRID
+                    elif event.key == pygame.K_DOWN and GRID in legal_moves:
+                        b = GRID
                     else: # any other key should be ignored
                         continue
                     empty_slot = move(b, empty_slot)
-                    # print("Result2:", play_board, empty_slot)
-                # print("Result2:", play_board, empty_slot)
+                    # dprint("Result2:", play_board, empty_slot)
+                # dprint("Result2:", play_board, empty_slot)
 
         # check for solved
         if state == "PLAYING" and play_board == solved_board:
@@ -265,7 +260,7 @@ def game_loop():
         # 4) Draw (read-only)
         screen.fill((0,0,0))
         if state == "START":
-            # print("started")
+            # dprint("started")
             screen.blit(anon) # SHOW COMPLETE IMAGE 
             pygame.draw.rect(screen, (0,0,0), start_button) # button surface
             pygame.draw.rect(screen, (200,200,200), start_button, 3)    # button border
@@ -276,7 +271,7 @@ def game_loop():
                 pygame.draw.rect(screen, (250,250,250), start_button, 3)    # button border    
             screen.blit(start_txt_surface, start_txt_rect)  # button text
         elif state == "PLAYING":
-            # print("playing")
+            # dprint("playing")
             for pos in range(1,10):
                 row = (pos - 1) // GRID
                 col = (pos - 1) % GRID
@@ -291,7 +286,7 @@ def game_loop():
             pygame.draw.line(screen, (200,200,200), (0,200), (600,200), width=1)
             pygame.draw.line(screen, (200,200,200), (0,400), (600,400), width=1)
         elif state == "SOLVED":
-            # print("solved")
+            # dprint("solved")
             screen.blit(anon)
             # screen.blit(overlay,(0,0))  # shadow over screen, defined earlier, starting top left
             # NOT USED, KEEP AS REFERENCE
@@ -322,7 +317,7 @@ def game_loop():
     pygame.quit()
 
 def main():
-    # print("Empty slot is 9")
+    # dprint("Empty slot is 9")
     try:
         # raise Exception("testing my exception handling")
         game_loop()
