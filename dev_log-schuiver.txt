@@ -5,7 +5,8 @@ TODO
 - counting how many moves it took = optional, depends heavily on how well it was scrambled
 - perhaps move scrambling to 300 instead of 50?
 
-
+13/02/2026
+- chatGPT optimised version
 
 12/02/2026
 - refactored legal moves check and move() function to use deltas (and not strings)

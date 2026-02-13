@@ -1,399 +1,296 @@
 # app.py
-# eerste project om mijn architecturale kennis van python en pygame te testen
-# DOEL: een 3x3 schuiver spelletje waarin een image in 9 stukken geknipt wordt
-# random verspreid wordt over het gameboard en de user de tekening terug "heel"
-# moet maken
-
-# possible states: START, PLAYING, SOLVED, QUITTING
+# 3x3 sliding puzzle with START screen + mouse-only moves + simple slide animation
 
 import pygame
-import traceback # to get clear error messages
+import traceback
 import random
 
-solved_board = [1, 2, 3, 4, 5, 6, 7, 8, 9]
-play_board = solved_board[:]
-tiles = [None] * 10
-GRID = 3    # playboard is a 3x3 grid, divided into 9 tiles
-TILE = 200  # tiles are 200x200 pixels
-MOVE_DELTAS = (-1, +1, -GRID, +GRID) # possible moves inside the grid
-SCRAMBLE_MOVES = 3
-DEBUG_PRINTING = True
+# --- CONFIG / CONSTANTS ---
+GRID = 3
+TILE = 200
+W, H = 600, 600
+
+SCRAMBLE_MOVES = 50
 ANIM_FRAMES = 10
+DEBUG_PRINTING = False
 
-# Debug printing statements, set True or False with DEBUG_PRINTING
-def dprint(msg):
+solved_board = [1, 2, 3, 4, 5, 6, 7, 8, 9]   # tile 9 is the empty slot (not drawn)
+play_board = solved_board[:]
+tiles = [None] * 10  # dummy index 0
+
+
+def dprint(*args):
     if DEBUG_PRINTING:
-        print(msg)
-        return
+        print(*args)
 
-def get_possible_slides(empty_slot):
-    legal_moves = []
-    # check horizontal possible sliding neighbours
+
+def get_possible_slides(empty_slot: int) -> list[int]:
+    legal = []
+
+    # Horizontal (±1) without wrap:
+    # empty has a neighbor on the right if it's not in the rightmost column
     if empty_slot in (1, 2, 4, 5, 7, 8):
-        # dprint("moving to right is legal")
-        legal_moves.append(1)
+        legal.append(1)
+    # empty has a neighbor on the left if it's not in the leftmost column
     if empty_slot in (2, 3, 5, 6, 8, 9):
-        # dprint("moving to the left is legal")
-        legal_moves.append(-1)
-    # check vertical possible sliding neighbours
-    if empty_slot in (1, 2, 3, 4, 5, 6):
-        # dprint("moving down is legal")
-        legal_moves.append(GRID)
-    if empty_slot in (4, 5, 6, 7, 8, 9):
-        # dprint("moving up is legal")
-        legal_moves.append(-GRID)
-    return legal_moves
+        legal.append(-1)
 
-# SWAP the selected tile with the empty slot
-def move(b, empty_slot):
-    # When move() is entered we are sure that b is a legal move
-    # Nevertheless extra robustness checks for illegal moves have been included
-    # dprint("Entering move function, b is now:", b)
-    # dprint("before move playboard:", play_board)
-    moved = False
-    if type(b) != int:
+    # Vertical (±GRID)
+    if empty_slot in (1, 2, 3, 4, 5, 6):
+        legal.append(GRID)      # tile below slides up (empty moves down)
+    if empty_slot in (4, 5, 6, 7, 8, 9):
+        legal.append(-GRID)     # tile above slides down (empty moves up)
+
+    return legal
+
+
+def move(delta: int, empty_slot: int) -> int:
+    """Mutate play_board by swapping the tile at (empty_slot + delta) into empty_slot.
+    Returns new empty_slot position (old tile position). No-op if invalid.
+    """
+    if type(delta) is not int:
         return empty_slot
-    elif type(b) == int:
-        # dprint("The empty slot is on pos", empty_slot, "- the tile that moved is now on", moving_tile )
-        to_pos = empty_slot
-        from_pos = empty_slot + b
-        # prevent accidental out of bounds results
-        if from_pos < 1 or from_pos > 9: return empty_slot
-        # prevent wraps between 3-4 and 6-7
-        if abs(b) == 1 and ((to_pos-1)//GRID != (from_pos-1)//GRID): return empty_slot
-        # MUTATE the play board
-        play_board[to_pos-1], play_board[from_pos-1] = play_board[from_pos -1], play_board[to_pos-1]
-        # dprint("if moved playboard:", play_board)
-    return b, from_pos
+
+    to_pos = empty_slot
+    from_pos = empty_slot + delta
+
+    # bounds
+    if from_pos < 1 or from_pos > GRID * GRID:
+        return empty_slot
+
+    # prevent horizontal wrap for ±1
+    if abs(delta) == 1 and ((to_pos - 1) // GRID != (from_pos - 1) // GRID):
+        return empty_slot
+
+    play_board[to_pos - 1], play_board[from_pos - 1] = play_board[from_pos - 1], play_board[to_pos - 1]
+    return from_pos
+
+
+def scramble(empty_slot: int) -> int:
+    for _ in range(SCRAMBLE_MOVES):
+        delta = random.choice(get_possible_slides(empty_slot))
+        empty_slot = move(delta, empty_slot)
+    return empty_slot
 
 
 def game_loop():
-    # initialise pygame
     pygame.init()
+
+    # Fonts
     font = pygame.font.Font(None, 40)
     medfont = pygame.font.Font(None, 80)
     bigfont = pygame.font.Font(None, 120)
 
-    # set screen width and height
-    w = 600
-    h = 600
-    # create the display surface
-    screen = pygame.display.set_mode((w, h))
-    # Check if pygame supports anything else than .bmp
-    if pygame.image.get_extended() == False:
+    screen = pygame.display.set_mode((W, H))
+    pygame.display.set_caption("Sliding Puzzle")
+    clock = pygame.time.Clock()
+
+    if not pygame.image.get_extended():
         print("This pygame version does not support JPG images, sorry")
         return
-    # load assets/anon.jpg
-    anon = pygame.image.load("assets/anon.jpg")
-    # call .convert()
-    anon = pygame.Surface.convert(anon)
-    # print its size with get_size()
-    c = anon.get_size()
-    if c != (w, h):
-        print("Oh no, this picture is not",w,"x",h,"pixels!")
+
+    anon = pygame.image.load("assets/anon.jpg").convert()
+    if anon.get_size() != (W, H):
+        print("Oh no, this picture is not", W, "x", H, "pixels!")
         return
-    # else: 
-        # dprint("The picture has the correct dimensions")
-    
-    # SLICING LOOP
-        
-    for tile_id in range(1,10): # keep only 1-9
-        # row/col math
+
+    # Slice image into 9 subsurfaces
+    for tile_id in range(1, 10):
         row = (tile_id - 1) // GRID
         col = (tile_id - 1) % GRID
-        # left/top math
-        rect = pygame.Rect(col * TILE, row * TILE, w//GRID, h//GRID)
-        # subsurface
-        tile = anon.subsurface(rect)
-        # tiles[tile_id] = ...
-        tiles[tile_id] = tile
-    # dprint(tiles)
+        rect = pygame.Rect(col * TILE, row * TILE, TILE, TILE)
+        tiles[tile_id] = anon.subsurface(rect)
 
-    # OVERLAY DEFINITION - KEEP IT AS A REFERENCE
-    # overlay = pygame.Surface((w,h), pygame.SRCALPHA) # define transparent overlay covering screen
-    # overlay.fill((0, 0, 0, 160)) # last number = opacity
-
-    # BUTTON DEFINITIONS
-
-    # Define rectangle for start button (used only upon launch)
-    start_button = pygame.Rect(150,500,300,70)    
-    # font rendering for start button
-    start_txt_surface = medfont.render("START", True, (200,0,0))
+    # Buttons
+    start_button = pygame.Rect(150, 500, 300, 70)
+    start_txt_surface = medfont.render("START", True, (200, 0, 0))
     start_txt_rect = start_txt_surface.get_rect(center=start_button.center)
-    start_txt_rect.y += 6   # visual tweak to vertically center the text
-    # Define rectangle for SOLVED message after state is SOLVED
-    solved_area = pygame.Rect(20,20,560,200)
-    # Define rectangles for "quit" and "play again" buttons (used after SOLVED)
-    quit_button = pygame.Rect(70,500,200,70)
+    start_txt_rect.y += 6
+
+    solved_area = pygame.Rect(20, 20, 560, 200)
+    quit_button = pygame.Rect(70, 500, 200, 70)
     again_button = pygame.Rect(330, 500, 200, 70)
-    # font rendering
+
     solved_message_surface = bigfont.render("SOLVED!", True, "red")
     solved_message_rect = solved_message_surface.get_rect(center=solved_area.center)
-    quit_txt_surface = font.render("QUIT", True, (200,200,200))
+
+    quit_txt_surface = font.render("QUIT", True, (200, 200, 200))
     quit_txt_rect = quit_txt_surface.get_rect(center=quit_button.center)
     quit_txt_rect.y += 2
-    again_txt_surface = font.render("PLAY AGAIN", True, (200,200,200))
+
+    again_txt_surface = font.render("PLAY AGAIN", True, (200, 200, 200))
     again_txt_rect = again_txt_surface.get_rect(center=again_button.center)
     again_txt_rect.y += 2
-    
-    # set a caption for the window
-    pygame.display.set_caption("Sliding Puzzle")
-    
-    # create a clock
-    clock = pygame.time.Clock()
-    
-    # set dt
-    # dt = 0.0
 
-    # STARTING CONDITIONS
-    play_board[:] = solved_board
-    empty_slot = 9
+    # State
     state = "START"
+    empty_slot = 9
+    play_board[:] = solved_board
 
-    # SCRAMBLE FUNCTION
-    def scramble(empty_slot):
-        # make moves x times to scramble the playboard
-        for n in range(1, SCRAMBLE_MOVES):
-            # the list that holds the legal moves (deltas) given the position of the empty slot
-            legal_moves = get_possible_slides(empty_slot)
-            # pick one of the legal moves
-            b = random.choice(legal_moves)
-            # show the legal moves and the chosen move in the console
-            # dprint(legal_moves)
-            # dprint(b)
-            b, empty_slot = move(b, empty_slot)
-            # dprint("Result:", play_board, empty_slot)
-        return empty_slot
-    
+    # Animation locals (commit-first animation)
+    anim_from_pos = 0
+    anim_to_pos = 0
+    anim_tile_id = 0
+    anim_frame = 0
+
+    def draw_grid():
+        pygame.draw.line(screen, (200, 200, 200), (200, 0), (200, 600), width=1)
+        pygame.draw.line(screen, (200, 200, 200), (400, 0), (400, 600), width=1)
+        pygame.draw.line(screen, (200, 200, 200), (0, 200), (600, 200), width=1)
+        pygame.draw.line(screen, (200, 200, 200), (0, 400), (600, 400), width=1)
+
+    def draw_board(skip_pos: int | None = None):
+        for pos in range(1, 10):
+            if skip_pos is not None and pos == skip_pos:
+                continue
+            tile_id = play_board[pos - 1]
+            if tile_id == 9:
+                continue
+            row = (pos - 1) // GRID
+            col = (pos - 1) % GRID
+            screen.blit(tiles[tile_id], (col * TILE, row * TILE))
+
     while state != "QUITTING":
-        # dprint(state)
-        # 1) Check Events
+        # --- EVENTS ---
         for event in pygame.event.get():
-            # check for window close
-            if event.type == pygame.QUIT: 
+            if event.type == pygame.QUIT:
                 state = "QUITTING"
-                # dprint("quit was chosen")
-            # check for mousebutton press
-            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                (mx, my) = event.pos
-                # dprint("mouse coordinates are",mx,my)
-                if state == "START":
-                    # check if mouseclick occurs inside start rectangle
-                    if start_button.collidepoint(mx, my):
-                        state = "SCRAMBLING"
-                        # dprint("start hit")
-                        play_board[:] = solved_board
-                        empty_slot = 9  
-                        empty_slot = scramble(empty_slot)
-                        # dprint(empty_slot)
-                        state = "PLAYING"
-                elif state =="PLAYING" or state == "SCRAMBLING":
-                    legal_moves = get_possible_slides(empty_slot)
-                    # dprint(legal_moves, empty_slot)
-                    row = my//TILE
-                    col = mx//TILE
-                    # calculate tile position 1-9
-                    pos = (row*3)+col+1
-                    # dprint("pos is",pos)
-                    # compute pos
-                    delta = pos - empty_slot
-                    # dprint("delta is",delta)
-                    # map delta → direction string
-                    if delta in legal_moves:
-                        # dprint("Mousedirection is",b)
-                        # dprint("legal move")
-                        old_empty = empty_slot          # <-- save pre-move empty
-                        tile_id = play_board[pos-1]     # <-- read tile id BEFORE move swaps it to 9
-                        delta, empty_slot = move(delta,empty_slot)
-                        # dprint("after move empty slot has moved to")
-                        # dprint(empty_slot)
-                        if state == "PLAYING":
-                            from_pos = pos
-                            to_pos = old_empty
-                            # tile_id = play_board[pos-1]
-                            anim_delta = delta
-                            anim_from_pos = from_pos
-                            anim_to_pos = to_pos
-                            anim_tile_id = tile_id
-                            anim_frame = 0
-                            state ="ANIMATE"
-                    else:
-                        # dprint("NOT legal")
-                        delta = None
-                        continue
 
-                elif state =="SOLVED":
-                    # check if mouseclick occurs inside quit or again rectangles
-                    if quit_button.collidepoint(mx, my):
-                        # dprint("quit hit")
-                        state = "QUITTING"
-                    elif again_button.collidepoint(mx, my):
-                        # dprint("again hit")
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    state = "QUITTING"
+                # Arrow keys intentionally removed
+
+            elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                mx, my = event.pos
+
+                if state == "START":
+                    if start_button.collidepoint(mx, my):
                         play_board[:] = solved_board
                         empty_slot = 9
                         empty_slot = scramble(empty_slot)
                         state = "PLAYING"
 
-            # check for keypress
-            elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_ESCAPE:
-                    state = "QUITTING"
-                    # dprint("escape was pressed")
                 elif state == "PLAYING":
-                    legal_moves = get_possible_slides(empty_slot)
-                    # dprint(legal_moves, empty_slot)
-                    if event.key == pygame.K_LEFT and -1 in legal_moves:
-                        b = -1
-                    elif event.key == pygame.K_RIGHT and +1 in legal_moves:
-                        b = 1
-                    elif event.key == pygame.K_UP and -GRID in legal_moves:
-                        b = -GRID
-                    elif event.key == pygame.K_DOWN and GRID in legal_moves:
-                        b = GRID
-                    else: # any other key should be ignored
-                        continue
-                    b, empty_slot = move(b, empty_slot)
-                    # dprint("Result2:", play_board, empty_slot)
-                # dprint("Result2:", play_board, empty_slot)
+                    row = my // TILE
+                    col = mx // TILE
+                    pos = row * GRID + col + 1
 
-        # check for solved
+                    legal = get_possible_slides(empty_slot)
+                    delta = pos - empty_slot
+
+                    if delta in legal:
+                        old_empty = empty_slot
+                        from_pos = pos
+                        to_pos = old_empty
+                        moved_tile_id = play_board[from_pos - 1]  # before commit
+
+                        empty_slot = move(delta, empty_slot)      # commit now
+
+                        # animation setup (commit-first)
+                        anim_from_pos = from_pos
+                        anim_to_pos = to_pos
+                        anim_tile_id = moved_tile_id
+                        anim_frame = 0
+                        state = "ANIMATE"
+
+                elif state == "SOLVED":
+                    if quit_button.collidepoint(mx, my):
+                        state = "QUITTING"
+                    elif again_button.collidepoint(mx, my):
+                        play_board[:] = solved_board
+                        empty_slot = 9
+                        empty_slot = scramble(empty_slot)
+                        state = "PLAYING"
+
+                # ignore clicks during ANIMATE
+
+        # --- SOLVED CHECK (only in PLAYING) ---
         if state == "PLAYING" and play_board == solved_board:
             state = "SOLVED"
 
-        # 2) Advance Game time
+        # --- TIME / UPDATE ---
         clock.tick(60)
-        # 3) Update game (simulation)
-        # 4) Draw (read-only)
-        screen.fill((0,0,0))
-        if state == "START":
-            # dprint("started")
-            screen.blit(anon) # SHOW COMPLETE IMAGE 
-            pygame.draw.rect(screen, (0,0,0), start_button) # button surface
-            pygame.draw.rect(screen, (200,200,200), start_button, 3)    # button border
-            mx, my = pygame.mouse.get_pos()
-            start_hover = start_button.collidepoint(mx, my)
-            if start_hover:
-                pygame.draw.rect(screen, (50,50,50), start_button) # button surface
-                pygame.draw.rect(screen, (250,250,250), start_button, 3)    # button border    
-            screen.blit(start_txt_surface, start_txt_rect)  # button text
-        elif state == "PLAYING":
-            # print("playing")
-            for pos in range(1,10):
-                row = (pos - 1) // GRID
-                col = (pos - 1) % GRID
-                position = (col*TILE, row*TILE)
-                tile_id = play_board[pos-1]
-                if tile_id != 9: 
-                    #blit tile at that position
-                    screen.blit(tiles[tile_id], position)
-            # draw grid for tile edges
-            pygame.draw.line(screen, (200,200,200), (200,0), (200,600), width=1)
-            pygame.draw.line(screen, (200,200,200), (400,0), (400,600), width=1)
-            pygame.draw.line(screen, (200,200,200), (0,200), (600,200), width=1)
-            pygame.draw.line(screen, (200,200,200), (0,400), (600,400), width=1)
-        elif state == "ANIMATE":
-            # dprint("Animating in draw secton")
 
-            # DRAW THE NORMAL TILES
-            for pos in range(1,10):
-                row = (pos - 1) // GRID
-                col = (pos - 1) % GRID
-                position = (col*TILE, row*TILE)
-                tile_id = play_board[pos-1]
-                # don't blit the moving tile
-                if pos == anim_to_pos:
-                    continue
-                # nor the empty slot!
-                if tile_id != 9: 
-                    #blit tile at that position
-                    screen.blit(tiles[tile_id], position)
-            # draw grid for tile edges
-            pygame.draw.line(screen, (200,200,200), (200,0), (200,600), width=1)
-            pygame.draw.line(screen, (200,200,200), (400,0), (400,600), width=1)
-            pygame.draw.line(screen, (200,200,200), (0,200), (600,200), width=1)
-            pygame.draw.line(screen, (200,200,200), (0,400), (600,400), width=1)
-            # DRAW THE MOVING TILE ON TOP
-            # dprint(anim_from_pos)
-            # dprint(anim_to_pos)
-            from_row = ((anim_from_pos-1) // GRID)
-            from_col = ((anim_from_pos -1) % GRID)
-            to_row = ((anim_to_pos-1) // GRID)
-            to_col = ((anim_to_pos-1) % GRID)
-            xer = to_col
-            yer = to_row
-            # position2 = (xer * 200, yer * 200)
-            # print((from_col,from_row), (to_col, to_row), "correct")
-            # print("should end at", (to_col*TILE, to_row*TILE))
-            anim_frame += 10
-            if from_col == to_col:
-                # dprint("beweging op dezelfde kolom")
-                xer = to_col * 200
-                if to_row > from_row:                        
-                    # print("tile naar beneden")
-                    yer = (from_row*200) + (anim_frame)
-                else:
-                    # print("tile naar boven")
-                    yer = (from_row*200) - (anim_frame)
-            elif from_row == to_row:
-                # dprint("beweging in dezelfde rij")                    
-                yer = to_row * 200
-                if to_col > from_col:
-                    # print("tile naar rechts")
-                    xer = (from_col*200) + (anim_frame)
-                else:
-                    # print("tile naar links")
-                    xer = (from_col*200) - (anim_frame)
-            # print(xer,yer)
-            pygame.time.wait(10)
-            screen.blit(tiles[anim_tile_id], (xer,yer))            
-            # screen.blit(tiles[tile_id], position2)
-
-            # print("current pos van empty_slot:", from_col,from_row)
-            # print("current pos van moved_tile:", to_col,to_row)
-            # screen.blit(tiles[tile_id], (x_pos,y_pos))
-            if anim_frame == 200:
-                anim_frame = 0
+        if state == "ANIMATE":
+            anim_frame += 1
+            if anim_frame >= ANIM_FRAMES:
                 state = "PLAYING"
 
-        elif state == "SOLVED":
-            # dprint("solved")
-            screen.blit(anon)
-            # screen.blit(overlay,(0,0))  # shadow over screen, defined earlier, starting top left
-            # NOT USED, KEEP AS REFERENCE
+        # --- DRAW ---
+        screen.fill((0, 0, 0))
 
-            # draw two button rects (solid) with text
-            pygame.draw.rect(screen, (0,0,0), quit_button)  # button surface
-            pygame.draw.rect(screen, (200,200,200), quit_button, 3)     # button border
-            pygame.draw.rect(screen, (0,0,0), again_button) # button surface
-            pygame.draw.rect(screen, (200,200,200), again_button, 3)    # button border
+        if state == "START":
+            screen.blit(anon, (0, 0))
+            pygame.draw.rect(screen, (0, 0, 0), start_button)
+            pygame.draw.rect(screen, (200, 200, 200), start_button, 3)
+
             mx, my = pygame.mouse.get_pos()
-            again_hover = again_button.collidepoint(mx, my)
-            quit_hover  = quit_button.collidepoint(mx, my)
-            if again_hover:
-                pygame.draw.rect(screen, (50,50,50), again_button) # button surface
-                pygame.draw.rect(screen, (250,250,250), again_button, 3)    # button border    
-            if quit_hover:
-                pygame.draw.rect(screen, (50,50,50), quit_button)  # button surface
-                pygame.draw.rect(screen, (250,250,250), quit_button, 3)     # button border
-            # show a SOLVED! message AND the button texts
+            if start_button.collidepoint(mx, my):
+                pygame.draw.rect(screen, (50, 50, 50), start_button)
+                pygame.draw.rect(screen, (250, 250, 250), start_button, 3)
+
+            screen.blit(start_txt_surface, start_txt_rect)
+
+        elif state == "PLAYING":
+            draw_board()
+            draw_grid()
+
+        elif state == "ANIMATE":
+            # draw board + grid first (grid visible), but skip the moving tile at its destination slot
+            # (because board was already committed, moving tile is now at anim_to_pos)
+            draw_board(skip_pos=anim_to_pos)
+            draw_grid()
+
+            # interpolated position of moving tile on top (covers grid where it passes)
+            t = anim_frame / ANIM_FRAMES
+
+            fr = (anim_from_pos - 1) // GRID
+            fc = (anim_from_pos - 1) % GRID
+            tr = (anim_to_pos - 1) // GRID
+            tc = (anim_to_pos - 1) % GRID
+
+            fx, fy = fc * TILE, fr * TILE
+            tx, ty = tc * TILE, tr * TILE
+
+            x = fx + (tx - fx) * t
+            y = fy + (ty - fy) * t
+
+            screen.blit(tiles[anim_tile_id], (round(x), round(y)))
+
+        elif state == "SOLVED":
+            screen.blit(anon, (0, 0))
+
+            # buttons
+            pygame.draw.rect(screen, (0, 0, 0), quit_button)
+            pygame.draw.rect(screen, (200, 200, 200), quit_button, 3)
+            pygame.draw.rect(screen, (0, 0, 0), again_button)
+            pygame.draw.rect(screen, (200, 200, 200), again_button, 3)
+
+            mx, my = pygame.mouse.get_pos()
+            if again_button.collidepoint(mx, my):
+                pygame.draw.rect(screen, (50, 50, 50), again_button)
+                pygame.draw.rect(screen, (250, 250, 250), again_button, 3)
+            if quit_button.collidepoint(mx, my):
+                pygame.draw.rect(screen, (50, 50, 50), quit_button)
+                pygame.draw.rect(screen, (250, 250, 250), quit_button, 3)
+
+            # solved text + labels
             screen.blit(solved_message_surface, solved_message_rect)
-            screen.blit(again_txt_surface, again_txt_rect)  # button text
-            screen.blit(quit_txt_surface, quit_txt_rect)    # button text
+            screen.blit(again_txt_surface, again_txt_rect)
+            screen.blit(quit_txt_surface, quit_txt_rect)
+
         pygame.display.flip()
 
-        if state == "QUITTING":
-            continue
-    
     pygame.quit()
 
 
 def main():
-    # dprint("Empty slot is 9")
     try:
-        # raise Exception("testing my exception handling")
         game_loop()
     except Exception:
         traceback.print_exc()
+
 
 if __name__ == "__main__":
     main()
