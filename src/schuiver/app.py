@@ -18,6 +18,7 @@ TILE = 200  # tiles are 200x200 pixels
 MOVE_DELTAS = (-1, +1, -GRID, +GRID) # possible moves inside the grid
 SCRAMBLE_MOVES = 3
 DEBUG_PRINTING = True
+ANIM_FRAMES = 10
 
 # Debug printing statements, set True or False with DEBUG_PRINTING
 def dprint(msg):
@@ -28,33 +29,25 @@ def dprint(msg):
 def get_possible_slides(empty_slot):
     legal_moves = []
     # check horizontal possible sliding neighbours
-    if empty_slot in (2, 5, 8):
-        # dprint("moving to the left and to the right is legal")
-        legal_moves.append(-1)
+    if empty_slot in (1, 2, 4, 5, 7, 8):
+        # dprint("moving to right is legal")
         legal_moves.append(1)
-    elif empty_slot in (3, 6, 9):
+    if empty_slot in (2, 3, 5, 6, 8, 9):
         # dprint("moving to the left is legal")
         legal_moves.append(-1)
-    else: # (1, 4, 7):
-        # dprint("moving to the right is legal")
-        legal_moves.append(1)
     # check vertical possible sliding neighbours
-    if empty_slot in (4, 5, 6):
-        # dprint("moving up and down is legal")
-        legal_moves.append(-GRID)
-        legal_moves.append(GRID)
-    elif empty_slot in (1, 2, 3): 
+    if empty_slot in (1, 2, 3, 4, 5, 6):
         # dprint("moving down is legal")
         legal_moves.append(GRID)
-    else: # empty_slot in (7, 8, 9):
+    if empty_slot in (4, 5, 6, 7, 8, 9):
         # dprint("moving up is legal")
         legal_moves.append(-GRID)
     return legal_moves
 
+# SWAP the selected tile with the empty slot
 def move(b, empty_slot):
     # When move() is entered we are sure that b is a legal move
     # Nevertheless extra robustness checks for illegal moves have been included
-    # swap the selected tile with the empty slot
     # dprint("Entering move function, b is now:", b)
     # dprint("before move playboard:", play_board)
     moved = False
@@ -71,7 +64,7 @@ def move(b, empty_slot):
         # MUTATE the play board
         play_board[to_pos-1], play_board[from_pos-1] = play_board[from_pos -1], play_board[to_pos-1]
         # dprint("if moved playboard:", play_board)
-    return from_pos
+    return b, from_pos
 
 
 def game_loop():
@@ -168,11 +161,12 @@ def game_loop():
             # show the legal moves and the chosen move in the console
             # dprint(legal_moves)
             # dprint(b)
-            empty_slot = move(b, empty_slot)
+            b, empty_slot = move(b, empty_slot)
             # dprint("Result:", play_board, empty_slot)
         return empty_slot
     
     while state != "QUITTING":
+        # dprint(state)
         # 1) Check Events
         for event in pygame.event.get():
             # check for window close
@@ -186,14 +180,14 @@ def game_loop():
                 if state == "START":
                     # check if mouseclick occurs inside start rectangle
                     if start_button.collidepoint(mx, my):
+                        state = "SCRAMBLING"
                         # dprint("start hit")
                         play_board[:] = solved_board
                         empty_slot = 9  
                         empty_slot = scramble(empty_slot)
                         # dprint(empty_slot)
                         state = "PLAYING"
-
-                elif state =="PLAYING":
+                elif state =="PLAYING" or state == "SCRAMBLING":
                     legal_moves = get_possible_slides(empty_slot)
                     # dprint(legal_moves, empty_slot)
                     row = my//TILE
@@ -208,9 +202,21 @@ def game_loop():
                     if delta in legal_moves:
                         # dprint("Mousedirection is",b)
                         # dprint("legal move")
-                        empty_slot = move(delta,empty_slot)
-                        # dprint("empty slot has moved to",empty_slot)
-                        tile_id = play_board[pos-1]
+                        old_empty = empty_slot          # <-- save pre-move empty
+                        tile_id = play_board[pos-1]     # <-- read tile id BEFORE move swaps it to 9
+                        delta, empty_slot = move(delta,empty_slot)
+                        # dprint("after move empty slot has moved to")
+                        # dprint(empty_slot)
+                        if state == "PLAYING":
+                            from_pos = pos
+                            to_pos = old_empty
+                            # tile_id = play_board[pos-1]
+                            anim_delta = delta
+                            anim_from_pos = from_pos
+                            anim_to_pos = to_pos
+                            anim_tile_id = tile_id
+                            anim_frame = 0
+                            state ="ANIMATE"
                     else:
                         # dprint("NOT legal")
                         delta = None
@@ -246,7 +252,7 @@ def game_loop():
                         b = GRID
                     else: # any other key should be ignored
                         continue
-                    empty_slot = move(b, empty_slot)
+                    b, empty_slot = move(b, empty_slot)
                     # dprint("Result2:", play_board, empty_slot)
                 # dprint("Result2:", play_board, empty_slot)
 
@@ -271,7 +277,7 @@ def game_loop():
                 pygame.draw.rect(screen, (250,250,250), start_button, 3)    # button border    
             screen.blit(start_txt_surface, start_txt_rect)  # button text
         elif state == "PLAYING":
-            # dprint("playing")
+            # print("playing")
             for pos in range(1,10):
                 row = (pos - 1) // GRID
                 col = (pos - 1) % GRID
@@ -285,6 +291,70 @@ def game_loop():
             pygame.draw.line(screen, (200,200,200), (400,0), (400,600), width=1)
             pygame.draw.line(screen, (200,200,200), (0,200), (600,200), width=1)
             pygame.draw.line(screen, (200,200,200), (0,400), (600,400), width=1)
+        elif state == "ANIMATE":
+            # dprint("Animating in draw secton")
+
+            # DRAW THE NORMAL TILES
+            for pos in range(1,10):
+                row = (pos - 1) // GRID
+                col = (pos - 1) % GRID
+                position = (col*TILE, row*TILE)
+                tile_id = play_board[pos-1]
+                # don't blit the moving tile
+                if pos == anim_to_pos:
+                    continue
+                # nor the empty slot!
+                if tile_id != 9: 
+                    #blit tile at that position
+                    screen.blit(tiles[tile_id], position)
+            # draw grid for tile edges
+            pygame.draw.line(screen, (200,200,200), (200,0), (200,600), width=1)
+            pygame.draw.line(screen, (200,200,200), (400,0), (400,600), width=1)
+            pygame.draw.line(screen, (200,200,200), (0,200), (600,200), width=1)
+            pygame.draw.line(screen, (200,200,200), (0,400), (600,400), width=1)
+            # DRAW THE MOVING TILE ON TOP
+            # dprint(anim_from_pos)
+            # dprint(anim_to_pos)
+            from_row = ((anim_from_pos-1) // GRID)
+            from_col = ((anim_from_pos -1) % GRID)
+            to_row = ((anim_to_pos-1) // GRID)
+            to_col = ((anim_to_pos-1) % GRID)
+            xer = to_col
+            yer = to_row
+            # position2 = (xer * 200, yer * 200)
+            # print((from_col,from_row), (to_col, to_row), "correct")
+            # print("should end at", (to_col*TILE, to_row*TILE))
+            anim_frame += 10
+            if from_col == to_col:
+                # dprint("beweging op dezelfde kolom")
+                xer = to_col * 200
+                if to_row > from_row:                        
+                    # print("tile naar beneden")
+                    yer = (from_row*200) + (anim_frame)
+                else:
+                    # print("tile naar boven")
+                    yer = (from_row*200) - (anim_frame)
+            elif from_row == to_row:
+                # dprint("beweging in dezelfde rij")                    
+                yer = to_row * 200
+                if to_col > from_col:
+                    # print("tile naar rechts")
+                    xer = (from_col*200) + (anim_frame)
+                else:
+                    # print("tile naar links")
+                    xer = (from_col*200) - (anim_frame)
+            # print(xer,yer)
+            pygame.time.wait(10)
+            screen.blit(tiles[anim_tile_id], (xer,yer))            
+            # screen.blit(tiles[tile_id], position2)
+
+            # print("current pos van empty_slot:", from_col,from_row)
+            # print("current pos van moved_tile:", to_col,to_row)
+            # screen.blit(tiles[tile_id], (x_pos,y_pos))
+            if anim_frame == 200:
+                anim_frame = 0
+                state = "PLAYING"
+
         elif state == "SOLVED":
             # dprint("solved")
             screen.blit(anon)
@@ -315,6 +385,7 @@ def game_loop():
             continue
     
     pygame.quit()
+
 
 def main():
     # dprint("Empty slot is 9")

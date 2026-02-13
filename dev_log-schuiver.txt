@@ -2,14 +2,16 @@
 
 TODO
 ====
-- animation of moves?
 - counting how many moves it took = optional, depends heavily on how well it was scrambled
 - perhaps move scrambling to 300 instead of 50?
+
+
 
 12/02/2026
 - refactored legal moves check and move() function to use deltas (and not strings)
 - added dprint debugging function (toggle debug print statements on/of, as well as possibility
     of commenting them out)
+- added tile animation, very buggy and spent lots of time to solve it (chat GPT still not happy)
 
 11/02/2026
 - added gridlines on screen so edges of tiles are easily recognisible
